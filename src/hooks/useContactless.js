@@ -6,7 +6,14 @@ export const useContactless = (callback, { runningMode = 'VIDEO', numHands = 2, 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const isRunning = useRef(false);
+  const rafIdRef = useRef(null);
+  const callbackRef = useRef(callback);
   const [isReady, setIsReady] = useState(false);
+
+  // Keep callbackRef current without it being a dep of any useCallback
+  useEffect(() => {
+    callbackRef.current = callback;
+  });
 
   // Advanced gesture tracker state
   const tracking = useRef({
@@ -41,6 +48,10 @@ export const useContactless = (callback, { runningMode = 'VIDEO', numHands = 2, 
 
   const stopCamera = useCallback(() => {
     isRunning.current = false;
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -65,21 +76,7 @@ export const useContactless = (callback, { runningMode = 'VIDEO', numHands = 2, 
 
     if (now > tracking.current.cooldownEnd) {
       
-      // 1. Check for two-handed PRANAM pose (Namaste)
-      if (results.landmarks.length === 2) {
-          const hand1 = results.landmarks[0];
-          const hand2 = results.landmarks[1];
-          const indexDist = Math.hypot(hand1[8].x - hand2[8].x, hand1[8].y - hand2[8].y);
-          const wristDist = Math.hypot(hand1[0].x - hand2[0].x, hand1[0].y - hand2[0].y);
-          
-          if (indexDist < 0.1 && wristDist < 0.15) {
-              semanticGesture = 'PRANAM';
-              tracking.current.cooldownEnd = now + 1500;
-              return semanticGesture; 
-          }
-      }
-
-      // 2. Single hand Gestures mapping
+      // Single hand Gestures mapping
       const gestureObj = results.gestures && results.gestures.length > 0 ? results.gestures[0][0] : null;
       const currentName = gestureObj ? gestureObj.categoryName : 'None';
 
@@ -153,37 +150,48 @@ export const useContactless = (callback, { runningMode = 'VIDEO', numHands = 2, 
 
   const predictWebcam = useCallback(() => {
     if (!recognizerRef.current || !videoRef.current) return;
-    
+
+    // Cancel any existing loop before starting a new one
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+
     isRunning.current = true;
     let lastVideoTime = -1;
 
     const tick = () => {
       if (!isRunning.current) return;
-        
-      if (videoRef.current.currentTime !== lastVideoTime && videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
+
+      if (videoRef.current && videoRef.current.currentTime !== lastVideoTime && videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
         lastVideoTime = videoRef.current.currentTime;
         try {
           const results = recognizerRef.current.recognizeForVideo(videoRef.current, performance.now());
           const semanticGesture = processComplexGestures(results);
-          
-          if (callback) {
-             callback({ ...results, semanticGesture });
+
+          // Use ref so callback changes never force a new loop
+          if (callbackRef.current) {
+            callbackRef.current({ ...results, semanticGesture });
           }
         } catch (err) {
           console.error("Inference Error:", err);
         }
       }
-      requestAnimationFrame(tick);
-    }
+      rafIdRef.current = requestAnimationFrame(tick);
+    };
     tick();
-  }, [callback, processComplexGestures]);
+  }, [processComplexGestures]);
 
   const startCamera = useCallback(async (videoElement) => {
     videoRef.current = videoElement;
     if (!videoElement) return;
-    
+
+    // Guard: don't restart if a stream is already live
+    if (streamRef.current) return;
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (!videoRef.current) return; // component may have unmounted during await
       videoRef.current.srcObject = stream;
       streamRef.current = stream;
       videoRef.current.onloadedmetadata = () => {

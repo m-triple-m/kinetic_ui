@@ -290,11 +290,7 @@ const ContactlessDemo = () => {
     
     // Listen for advanced gestures
     if (results.semanticGesture) {
-       setSemanticAction(
-          results.semanticGesture === 'PRANAM' 
-            ? "ASALAM WALEKUM LYARI" 
-            : `${results.semanticGesture} Triggered!`
-       );
+       setSemanticAction(`${results.semanticGesture} Triggered!`);
        setTimeout(() => setSemanticAction(null), 2500);
     }
 
@@ -339,7 +335,7 @@ const ContactlessDemo = () => {
   return (
     <div className="demo-panel">
       <h2>useContactless (MediaPipe)</h2>
-      <p>Cooking with wet hands? Skip ads without touching the screen. Try making a fist, pointing one finger, victory (2 fingers), or thumbs up. You can also perform **Palm Swipes** in four directions (Up/Down/Left/Right) by moving your open hand quickly. Fold your hands in Pranam for a special greeting.</p>
+      <p>Cooking with wet hands? Skip ads without touching the screen. Try making a fist, pointing one finger, victory (2 fingers), or thumbs up. You can also perform **Palm Swipes** in four directions (Up/Down/Left/Right) by moving your open hand quickly.</p>
       
       <div className="status-flex">
         {!isReady && <div className="status-badge pulse-red">Loading ML Model...</div>}

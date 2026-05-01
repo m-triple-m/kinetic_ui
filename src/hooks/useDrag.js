@@ -22,7 +22,7 @@ export const useDrag = (callback, { boundary = null } = {}) => {
     stateRef.current.lastTime = Date.now();
     stateRef.current.lastPos = { x: clientX, y: clientY };
     stateRef.current.velocity = { x: 0, y: 0 };
-    
+
     if (callback) {
       callback({
         active: true,
@@ -37,9 +37,9 @@ export const useDrag = (callback, { boundary = null } = {}) => {
 
   const handleMove = useCallback((clientX, clientY) => {
     if (!stateRef.current.isDragging) return;
-    
+
     const s = stateRef.current;
-    
+
     const deltaX = clientX - s.start.x;
     const deltaY = clientY - s.start.y;
     s.movement = { x: deltaX, y: deltaY };
@@ -80,10 +80,10 @@ export const useDrag = (callback, { boundary = null } = {}) => {
   const handleEnd = useCallback(() => {
     if (!stateRef.current.isDragging) return;
     stateRef.current.isDragging = false;
-    
+
     let newOffsetX = stateRef.current.offset.x + stateRef.current.movement.x;
     let newOffsetY = stateRef.current.offset.y + stateRef.current.movement.y;
-    
+
     if (boundary) {
       if (boundary.left !== undefined) newOffsetX = Math.max(newOffsetX, boundary.left);
       if (boundary.right !== undefined) newOffsetX = Math.min(newOffsetX, boundary.right);
